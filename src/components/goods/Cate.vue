@@ -60,7 +60,12 @@
     </el-card>
 
     <!-- 添加分类的对话框 -->
-    <el-dialog title="添加分类" :visible.sync="addCateDialogVisible" width="50%">
+    <el-dialog
+      title="添加分类"
+      :visible.sync="addCateDialogVisible"
+      width="50%"
+      @close="addCateDialogClosed"
+    >
       <el-form
         :model="addCateForm"
         :rules="addCateFormRules"
@@ -86,13 +91,14 @@
       </el-form>
       <span slot="footer" class="dialog-footer">
         <el-button @click="addCateDialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="addCateDialogVisible = false">确 定</el-button>
+        <el-button type="primary" @click="addCate">确 定</el-button>
       </span>
     </el-dialog>
   </div>
 </template>
 
 <script>
+import { async } from 'q'
 export default {
   data() {
     return {
@@ -210,6 +216,45 @@ export default {
     // cascader选择项发生变化触发这个函数
     parentCateChanged() {
       console.log(this.selectedKeys)
+      // 如果selectedKeys数组中的length大于0证明选中了父级分类 反之没有选中任何父级分类
+      if (this.selectedKeys.length > 0) {
+        // 父级分类id绑定
+        this.addCateForm.cat_pid = this.selectedKeys[
+          this.selectedKeys.length - 1
+        ]
+        // 为当前分类等级赋值
+        this.addCateForm.cat_level = this.selectedKeys.length
+        return
+      } else {
+        this.addCateForm.cat_pid = 0
+        this.addCateForm.cat_level = 0
+      }
+    },
+    // 点击确定按钮添加新的分类
+    addCate() {
+      // 表单校验
+      this.$refs.addCateFormRef.validate(async valid => {
+        if (!valid) return
+        const { data: res } = await this.$http.post(
+          'categories',
+          this.addCateForm
+        )
+        if (res.meta.status !== 201) {
+          return this.$message.error('添加分类失败')
+        }
+        this.$message.success('添加分类成功')
+        this.getCateList()
+        this.addCateDialogVisible = false
+      })
+    },
+    // 监听对话框的关闭事件 重置表单数据
+    addCateDialogClosed() {
+      // 清空表单
+      this.$refs.addCateFormRef.resetFields()
+      // 清空级联选择器
+      this.selectedKeys = []
+      this.addCateForm.cat_level = 0
+      this.addCateForm.cat_pid = 0
     }
   }
 }
